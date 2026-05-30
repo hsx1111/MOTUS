@@ -1,0 +1,114 @@
+/* ─── Styles globaux MOTUS ────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --couleur-correct: #c0392b;
+  --couleur-present: #f39c12;
+  --couleur-absent: #7f8c8d;
+  --couleur-vide: #ecf0f1;
+  --couleur-en-cours: #bdc3c7;
+  --couleur-fond: #1a1a2e;
+  --couleur-surface: #16213e;
+  --couleur-surface2: #0f3460;
+  --couleur-texte: #eaeaea;
+  --couleur-texte-secondaire: #a0a0b0;
+  --couleur-accent: #e94560;
+  --couleur-succes: #27ae60;
+  --couleur-erreur: #e74c3c;
+  --rayon-bordure: 8px;
+  --ombre: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --transition: all 0.2s ease;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--couleur-fond);
+  color: var(--couleur-texte);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3 {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--rayon-bordure);
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input {
+  border-radius: var(--rayon-bordure);
+  border: 1px solid var(--couleur-surface2);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+}
+
+input:focus {
+  outline: 2px solid var(--couleur-accent);
+  border-color: transparent;
+}
+
+.btn-principal {
+  background-color: var(--couleur-accent);
+  color: white;
+}
+
+.btn-principal:hover:not(:disabled) {
+  background-color: #c73652;
+}
+
+.btn-secondaire {
+  background-color: var(--couleur-surface2);
+  color: var(--couleur-texte);
+}
+
+.btn-secondaire:hover:not(:disabled) {
+  background-color: #1a4a80;
+}
+
+.btn-danger {
+  background-color: var(--couleur-erreur);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.message-erreur {
+  background-color: rgba(231, 76, 60, 0.15);
+  border: 1px solid var(--couleur-erreur);
+  border-radius: var(--rayon-bordure);
+  padding: 0.75rem 1rem;
+  color: var(--couleur-erreur);
+  font-size: 0.9rem;
+}
+
+.message-succes {
+  background-color: rgba(39, 174, 96, 0.15);
+  border: 1px solid var(--couleur-succes);
+  border-radius: var(--rayon-bordure);
+  padding: 0.75rem 1rem;
+  color: var(--couleur-succes);
+  font-size: 0.9rem;
+}

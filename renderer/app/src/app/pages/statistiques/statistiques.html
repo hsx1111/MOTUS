@@ -1,0 +1,102 @@
+<div class="page-stats">
+  <h1>Statistiques</h1>
+
+  @if (joueurService.joueurActif(); as joueur) {
+    <p class="sous-titre">{{ joueur.pseudo }}</p>
+  }
+
+  @if (statService.chargement()) {
+    <div class="chargement">Chargement...</div>
+  }
+
+  @if (statService.erreur(); as erreur) {
+    <div class="message-erreur">{{ erreur }}</div>
+  }
+
+  @if (statService.statistiques(); as stats) {
+    <div class="grille-stats">
+      <!-- Compteurs -->
+      <div class="carte-stat">
+        <div class="stat-valeur">{{ stats.totalParties }}</div>
+        <div class="stat-label">Parties jouées</div>
+      </div>
+      <div class="carte-stat carte-stat--succes">
+        <div class="stat-valeur">{{ stats.partiesGagnees }}</div>
+        <div class="stat-label">Victoires</div>
+      </div>
+      <div class="carte-stat carte-stat--echec">
+        <div class="stat-valeur">{{ stats.partiesPerdues }}</div>
+        <div class="stat-label">Défaites</div>
+      </div>
+      <div class="carte-stat">
+        <!-- computed() : tauxReussite est recalculé automatiquement -->
+        <div class="stat-valeur">{{ statService.tauxReussite() }}%</div>
+        <div class="stat-label">Taux de réussite</div>
+      </div>
+      <div class="carte-stat">
+        <div class="stat-valeur">{{ stats.moyenneEssais }}</div>
+        <div class="stat-label">Moyenne essais</div>
+      </div>
+      <div class="carte-stat">
+        <div class="stat-valeur">{{ stats.serieActuelle }}</div>
+        <div class="stat-label">Série actuelle</div>
+      </div>
+      <div class="carte-stat">
+        <div class="stat-valeur">{{ stats.meilleureSeriere }}</div>
+        <div class="stat-label">Meilleure série</div>
+      </div>
+    </div>
+
+    <!-- Histogramme de répartition -->
+    @if (stats.repartitionEssais.length > 0) {
+      <div class="section">
+        <h2>Répartition des essais (parties gagnées)</h2>
+        <div class="histogramme">
+          @for (r of stats.repartitionEssais; track r.nbEssais) {
+            <div class="barre-ligne">
+              <span class="barre-label">{{ r.nbEssais }}</span>
+              <div class="barre-fond">
+                <div class="barre-valeur" [style.width]="largeurBarre(r.nombreParties)"></div>
+              </div>
+              <span class="barre-count">{{ r.nombreParties }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Succès -->
+    <div class="section">
+      <h2>Succès débloqués</h2>
+      @if (stats.succes.length > 0) {
+        <div class="succes-grille">
+          @for (js of stats.succes; track js.succesId) {
+            <div class="carte-succes">
+              <div class="succes-titre">🏆 {{ js.succes?.libelle }}</div>
+              @if (js.succes?.description) {
+                <div class="succes-desc">{{ js.succes!.description }}</div>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="liste-vide">Aucun succès débloqué pour l'instant.</p>
+      }
+    </div>
+  }
+
+  <!-- Mots par thème -->
+  @if (statService.motsParTheme().length > 0) {
+    <div class="section">
+      <h2>Mots par thème</h2>
+      <div class="themes-liste">
+        @for (item of statService.motsParTheme(); track item.theme.id) {
+          <div class="theme-item" [style.border-left-color]="item.theme.couleur">
+            <span class="theme-nom">{{ item.theme.nom }}</span>
+            <span class="theme-count">{{ item.nombreMots }} mots</span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

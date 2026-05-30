@@ -1,0 +1,53 @@
+<div class="page-historique">
+  <h1>Historique des parties</h1>
+
+  @if (joueurService.joueurActif(); as joueur) {
+    <p class="sous-titre">Joueur : <strong>{{ joueur.pseudo }}</strong></p>
+  }
+
+  <!-- Filtres -->
+  <div class="filtres">
+    @for (filtre of filtresDisponibles; track filtre.valeur) {
+      <button
+        class="btn-filtre"
+        [class.btn-filtre--actif]="filtreResultat() === filtre.valeur"
+        (click)="changerFiltre(filtre.valeur)"
+      >
+        {{ filtre.libelle }}
+      </button>
+    }
+  </div>
+
+  <!-- Chargement -->
+  @if (partieService.chargement()) {
+    <div class="chargement">Chargement...</div>
+  }
+
+  <!-- Erreur -->
+  @if (partieService.erreur(); as erreur) {
+    <div class="message-erreur">{{ erreur }}</div>
+  }
+
+  <!-- Liste des parties -->
+  <div class="liste-parties">
+    @for (partie of partiesFiltrees(); track partie.id) {
+      <div class="carte-partie" [class]="'carte-partie--' + partie.resultat.toLowerCase()">
+        <div class="partie-entete">
+          <span class="partie-mot">{{ partie.mot?.valeur ?? '???' }}</span>
+          <span class="partie-resultat">
+            @if (partie.resultat === 'GAGNE') { ✅ Gagné }
+            @if (partie.resultat === 'PERDU') { ❌ Perdu }
+          </span>
+        </div>
+        <div class="partie-details">
+          <span>{{ partie.difficulte }}</span>
+          <span>{{ partie.nbEssais }} essai(s)</span>
+          <span>{{ formaterDate(partie.commenceeLe) }}</span>
+        </div>
+      </div>
+    }
+    @empty {
+      <div class="liste-vide">Aucune partie terminée pour l'instant.</div>
+    }
+  </div>
+</div>

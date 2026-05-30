@@ -1,0 +1,39 @@
+<div class="app-conteneur">
+  <!-- Navigation principale -->
+  <nav class="nav-principale">
+    <div class="nav-logo">
+      <span class="logo-lettre logo-m">M</span>
+      <span class="logo-lettre logo-o">O</span>
+      <span class="logo-lettre logo-t">T</span>
+      <span class="logo-lettre logo-u">U</span>
+      <span class="logo-lettre logo-s">S</span>
+    </div>
+    <ul class="nav-liens">
+      <li>
+        <a routerLink="/jouer" routerLinkActive="actif" class="nav-lien">
+          🎮 Jouer
+        </a>
+      </li>
+      <li>
+        <a routerLink="/historique" routerLinkActive="actif" class="nav-lien">
+          📜 Historique
+        </a>
+      </li>
+      <li>
+        <a routerLink="/statistiques" routerLinkActive="actif" class="nav-lien">
+          📊 Statistiques
+        </a>
+      </li>
+      <li>
+        <a routerLink="/joueurs" routerLinkActive="actif" class="nav-lien">
+          👤 Joueurs
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Zone de contenu principal (les pages sont chargées ici) -->
+  <main class="contenu-principal">
+    <router-outlet />
+  </main>
+</div>

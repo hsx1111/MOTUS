@@ -1,0 +1,36 @@
+.page-historique { max-width: 800px; margin: 0 auto; }
+h1 { margin-bottom: 0.25rem; }
+.sous-titre { color: var(--couleur-texte-secondaire); margin-bottom: 1rem; }
+
+.filtres { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+.btn-filtre {
+  padding: 0.4rem 0.75rem;
+  background-color: var(--couleur-surface);
+  color: var(--couleur-texte-secondaire);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  border: none; cursor: pointer; transition: all 0.15s;
+}
+.btn-filtre--actif { background-color: var(--couleur-accent); color: white; }
+
+.liste-parties { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.carte-partie {
+  background-color: var(--couleur-surface);
+  border-radius: var(--rayon-bordure);
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--couleur-surface2);
+}
+.carte-partie--gagne  { border-left-color: var(--couleur-succes); }
+.carte-partie--perdu  { border-left-color: var(--couleur-erreur); }
+.carte-partie--en_cours { border-left-color: #f39c12; }
+
+.partie-entete { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.partie-mot { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.1em; }
+.partie-resultat { font-size: 0.85rem; }
+
+.partie-details { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--couleur-texte-secondaire); }
+
+.liste-vide { color: var(--couleur-texte-secondaire); text-align: center; padding: 3rem; font-style: italic; }
+.chargement { color: var(--couleur-texte-secondaire); padding: 1rem; }

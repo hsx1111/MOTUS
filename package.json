@@ -1,0 +1,30 @@
+{
+  "name": "motus-electron-angular-prisma",
+  "version": "1.0.0",
+  "description": "Application de bureau MOTUS — Electron + Angular + Prisma + SQLite",
+  "type": "commonjs",
+  "main": "dist/src/main.js",
+  "scripts": {
+    "build:electron": "tsc",
+    "build:angular": "cd renderer/app && npm install && npm run build",
+    "build": "npm run build:electron && npm run build:angular",
+    "start": "npm run build && npx electron .",
+    "start:dev": "npx electron .",
+    "db:migrate": "npx prisma migrate dev --name init",
+    "db:generate": "npx prisma generate",
+    "db:seed": "npm run build:electron && node dist/prisma/seed.js",
+    "db:studio": "npx prisma studio"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "prisma": {
+    "seed": "node dist/prisma/seed.js"
+  }
+}

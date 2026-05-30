@@ -1,0 +1,107 @@
+<div class="page-joueurs">
+  <h1>Gestion des joueurs</h1>
+
+  <!-- Formulaire de création/édition -->
+  <div class="section-formulaire">
+    <h2>{{ joueurEnEdition() ? 'Modifier' : 'Nouveau joueur' }}</h2>
+
+    <form [formGroup]="formulaire" (ngSubmit)="soumettre()" class="formulaire">
+      <div class="champ">
+        <label for="pseudo">Pseudo</label>
+        <input
+          id="pseudo"
+          type="text"
+          formControlName="pseudo"
+          placeholder="Entrez un pseudo..."
+          [class.invalide]="formulaire.get('pseudo')?.invalid && formulaire.get('pseudo')?.touched"
+        />
+        <!-- Affichage des erreurs de validation -->
+        @if (formulaire.get('pseudo')?.touched) {
+          @if (formulaire.get('pseudo')?.hasError('required')) {
+            <span class="erreur-champ">Le pseudo est obligatoire.</span>
+          }
+          @if (formulaire.get('pseudo')?.hasError('minlength')) {
+            <span class="erreur-champ">Minimum 2 caractères.</span>
+          }
+          @if (formulaire.get('pseudo')?.hasError('maxlength')) {
+            <span class="erreur-champ">Maximum 20 caractères.</span>
+          }
+          @if (formulaire.get('pseudo')?.hasError('pattern')) {
+            <span class="erreur-champ">Lettres, chiffres, tirets et underscores uniquement.</span>
+          }
+        }
+      </div>
+
+      <div class="actions-formulaire">
+        <!-- Bouton désactivé si formulaire invalide -->
+        <button type="submit" class="btn-principal" [disabled]="formulaire.invalid">
+          {{ joueurEnEdition() ? 'Enregistrer' : 'Créer' }}
+        </button>
+        @if (joueurEnEdition()) {
+          <button type="button" class="btn-secondaire" (click)="annulerEdition()">
+            Annuler
+          </button>
+        }
+      </div>
+    </form>
+
+    @if (joueurService.erreur(); as erreur) {
+      <div class="message-erreur">{{ erreur }}</div>
+    }
+    @if (messageSucces(); as msg) {
+      <div class="message-succes">{{ msg }}</div>
+    }
+  </div>
+
+  <!-- Liste des joueurs -->
+  <div class="section-liste">
+    <h2>Joueurs ({{ joueurService.joueurs().length }})</h2>
+
+    @if (joueurService.chargement()) {
+      <div class="chargement">Chargement...</div>
+    }
+
+    <div class="liste-joueurs">
+      @for (joueur of joueurService.joueurs(); track joueur.id) {
+        <div class="carte-joueur" [class.carte-joueur--actif]="joueurService.joueurActif()?.id === joueur.id">
+          <div class="joueur-info">
+            <span class="joueur-pseudo">{{ joueur.pseudo }}</span>
+            @if (joueurService.joueurActif()?.id === joueur.id) {
+              <span class="badge-actif">Actif</span>
+            }
+          </div>
+          <div class="joueur-actions">
+            <button class="btn-secondaire btn-petit" (click)="selectionner(joueur)"
+              [disabled]="joueurService.joueurActif()?.id === joueur.id">
+              Sélectionner
+            </button>
+            <button class="btn-secondaire btn-petit" (click)="editer(joueur)">
+              ✏️ Modifier
+            </button>
+            <button class="btn-danger btn-petit" (click)="demanderSuppression(joueur)">
+              🗑️ Supprimer
+            </button>
+          </div>
+        </div>
+      }
+      @empty {
+        <p class="liste-vide">Aucun joueur. Créez-en un ci-dessus.</p>
+      }
+    </div>
+  </div>
+
+  <!-- Dialogue de confirmation de suppression -->
+  @if (joueurASupprimer(); as joueur) {
+    <div class="overlay">
+      <div class="dialogue">
+        <h3>Confirmer la suppression</h3>
+        <p>Supprimer <strong>{{ joueur.pseudo }}</strong> ?</p>
+        <p class="avertissement">⚠️ Toutes ses parties seront également supprimées (onDelete: Cascade).</p>
+        <div class="dialogue-actions">
+          <button class="btn-danger" (click)="confirmerSuppression()">Supprimer</button>
+          <button class="btn-secondaire" (click)="annulerSuppression()">Annuler</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

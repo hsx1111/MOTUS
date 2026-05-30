@@ -1,0 +1,126 @@
+<div class="page-jeu">
+  <div class="panneau-gauche">
+    <h1 class="titre-jeu">MOTUS</h1>
+
+    <!-- Sélection du joueur -->
+    @if (joueurService.joueurActif(); as joueur) {
+      <div class="joueur-actif">
+        <span class="joueur-label">Joueur :</span>
+        <strong>{{ joueur.pseudo }}</strong>
+      </div>
+    } @else {
+      <div class="message-erreur">
+        Aucun joueur sélectionné.
+        <a routerLink="/joueurs">Créer un joueur</a>
+      </div>
+    }
+
+    <!-- Configuration si pas de partie en cours -->
+    @if (!jeuService.partieEnCours()) {
+      <div class="configuration">
+        <h2>Nouvelle partie</h2>
+
+        <!-- Mode défi du jour -->
+        <div class="option-mode">
+          <button
+            class="btn-mode"
+            [class.btn-mode--actif]="modeDefi()"
+            (click)="toggleModeDefi()"
+          >
+            📅 Mot du jour
+          </button>
+        </div>
+
+        <!-- Choix de difficulté (sauf en mode défi) -->
+        @if (!modeDefi()) {
+          <div class="choix-difficulte">
+            <label>Difficulté :</label>
+            <div class="difficultes">
+              @for (diff of difficultes; track diff.valeur) {
+                <button
+                  class="btn-difficulte"
+                  [class.btn-difficulte--actif]="difficulteChoisie() === diff.valeur"
+                  (click)="changerDifficulte(diff.valeur)"
+                >
+                  {{ diff.libelle }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <button
+          class="btn-principal btn-demarrer"
+          (click)="demarrerPartie()"
+          [disabled]="jeuService.chargement() || !joueurService.joueurActif()"
+        >
+          @if (jeuService.chargement()) {
+            Chargement...
+          } @else {
+            Jouer !
+          }
+        </button>
+      </div>
+    }
+
+    <!-- Infos pendant la partie -->
+    @if (jeuService.partieEnCours(); as partie) {
+      <div class="infos-partie">
+        <div class="info-item">
+          <span>Difficulté</span>
+          <strong>{{ partie.difficulte }}</strong>
+        </div>
+        <div class="info-item">
+          <span>Essais restants</span>
+          <strong>{{ jeuService.essaisRestants() }}</strong>
+        </div>
+        @if (partie.mot?.definition && jeuService.estTerminee()) {
+          <div class="definition">
+            <span>Définition :</span>
+            {{ partie.mot!.definition }}
+          </div>
+        }
+      </div>
+
+      <!-- Messages -->
+      @if (jeuService.messageErreur(); as erreur) {
+        <div class="message-erreur">{{ erreur }}</div>
+      }
+      @if (jeuService.messageSucces(); as msg) {
+        <div class="message-succes">{{ msg }}</div>
+      }
+
+      <!-- Succès débloqués -->
+      @if (jeuService.succesDebloques().length > 0) {
+        <div class="succes-liste">
+          <h3>🏆 Succès débloqués !</h3>
+          @for (succes of jeuService.succesDebloques(); track succes) {
+            <div class="succes-item">{{ succes }}</div>
+          }
+        </div>
+      }
+
+      @if (jeuService.estTerminee()) {
+        <button class="btn-principal" (click)="nouvellePartie()">
+          Nouvelle partie
+        </button>
+      }
+    }
+  </div>
+
+  <!-- Zone centrale : grille + clavier -->
+  @if (jeuService.partieEnCours()) {
+    <div class="zone-jeu">
+      <app-plateau [lignes]="jeuService.lignes()" />
+
+      @if (!jeuService.estTerminee()) {
+        <app-clavier
+          [lettresUtilisees]="jeuService.lettresUtilisees()"
+          (touchePressee)="onTouchePressee($event)"
+          (effacer)="onEffacer()"
+          (soumettre)="onSoumettre()"
+        />
+      }
+    </div>
+  }
+</div>

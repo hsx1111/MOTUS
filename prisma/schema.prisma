@@ -1,0 +1,250 @@
+// ─── Schéma Prisma MOTUS ──────────────────────────────────────────────────
+// Notion vue en cours : chaque model Prisma = une CREATE TABLE en SQL
+// Le générateur prisma-client-js produit le client TypeScript typé
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // L'URL est définie dans .env pour la CLI Prisma
+  // et programmatiquement dans main.ts pour le runtime Electron
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────
+// Notion vue en cours : Prisma stocke les enums comme TEXT en SQLite
+
+enum Difficulte {
+  FACILE
+  MOYEN
+  DIFFICILE
+}
+
+enum ResultatPartie {
+  EN_COURS
+  GAGNE
+  PERDU
+}
+
+// ─── Modèle 1 : Joueur ────────────────────────────────────────────────────
+// Équivalent SQL :
+// CREATE TABLE joueurs (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   pseudo TEXT UNIQUE NOT NULL,
+//   cree_le DATETIME DEFAULT CURRENT_TIMESTAMP
+// );
+model Joueur {
+  id       Int      @id @default(autoincrement())
+  pseudo   String   @unique
+  creeLe   DateTime @default(now()) @map("cree_le")
+
+  // Relation 1:N — un joueur a plusieurs parties
+  // onDelete: Cascade → supprimer un joueur supprime TOUTES ses parties
+  parties Partie[]
+
+  // Relation N:M explicite via table de jonction JoueurSucces
+  succes JoueurSucces[]
+
+  @@map("joueurs")
+}
+
+// ─── Modèle 2 : Mot ──────────────────────────────────────────────────────
+// Équivalent SQL :
+// CREATE TABLE mots (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   valeur TEXT UNIQUE NOT NULL,
+//   longueur INTEGER NOT NULL,
+//   difficulte TEXT NOT NULL,
+//   definition TEXT  -- champ optionnel (nullable)
+// );
+model Mot {
+  id         Int        @id @default(autoincrement())
+  valeur     String     @unique
+  longueur   Int
+  difficulte Difficulte
+  // Champ optionnel (annexe 5.2 « recommandé »)
+  definition String?
+
+  // Relations
+  defis   DefiQuotidien[]
+  parties Partie[]
+  // N:M explicite avec Theme via table de jonction MotTheme
+  themes  MotTheme[]
+
+  @@map("mots")
+}
+
+// ─── Modèle 3 : Theme ─────────────────────────────────────────────────────
+// Équivalent SQL :
+// CREATE TABLE themes (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   nom TEXT UNIQUE NOT NULL,
+//   couleur TEXT DEFAULT '#cccccc'
+// );
+model Theme {
+  id      Int    @id @default(autoincrement())
+  nom     String @unique
+  couleur String @default("#cccccc")
+
+  // N:M explicite avec Mot via table de jonction MotTheme
+  mots MotTheme[]
+
+  @@map("themes")
+}
+
+// ─── Modèle 4 : MotTheme (pivot N:M Mot ↔ Theme) ─────────────────────────
+// Notion vue en cours : table de jonction avec clé primaire COMPOSITE
+// Équivalent SQL :
+// CREATE TABLE mot_theme (
+//   mot_id INTEGER NOT NULL REFERENCES mots(id) ON DELETE CASCADE,
+//   theme_id INTEGER NOT NULL REFERENCES themes(id) ON DELETE CASCADE,
+//   PRIMARY KEY (mot_id, theme_id)
+// );
+model MotTheme {
+  motId   Int
+  themeId Int
+
+  // onDelete: Cascade → supprimer un mot ou un thème supprime les associations
+  mot   Mot   @relation(fields: [motId], references: [id], onDelete: Cascade)
+  theme Theme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  // Clé primaire composite — notion d'oral majeure
+  @@id([motId, themeId])
+  @@map("mot_theme")
+}
+
+// ─── Modèle 5 : DefiQuotidien ─────────────────────────────────────────────
+// Équivalent SQL :
+// CREATE TABLE defis_quotidiens (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   date TEXT UNIQUE NOT NULL,  -- format AAAA-MM-JJ
+//   mot_id INTEGER NOT NULL REFERENCES mots(id) ON DELETE RESTRICT
+// );
+model DefiQuotidien {
+  id    Int    @id @default(autoincrement())
+  date  String @unique
+  motId Int    @map("mot_id")
+
+  // onDelete: Restrict → IMPOSSIBLE de supprimer un mot utilisé comme défi
+  // Démontre le comportement RESTRICT (erreur si on essaie)
+  mot Mot @relation(fields: [motId], references: [id], onDelete: Restrict)
+
+  // Relation 1:N — un défi peut avoir plusieurs parties (de joueurs différents)
+  parties Partie[]
+
+  @@map("defis_quotidiens")
+}
+
+// ─── Modèle 6 : Partie ────────────────────────────────────────────────────
+// Notion vue en cours : démontre les 3 comportements onDelete différents
+// Équivalent SQL :
+// CREATE TABLE parties (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   joueur_id INTEGER NOT NULL REFERENCES joueurs(id) ON DELETE CASCADE,
+//   mot_id INTEGER NOT NULL REFERENCES mots(id) ON DELETE RESTRICT,
+//   defi_quotidien_id INTEGER REFERENCES defis_quotidiens(id) ON DELETE SET NULL,
+//   difficulte TEXT NOT NULL,
+//   resultat TEXT DEFAULT 'EN_COURS',
+//   nb_essais INTEGER DEFAULT 0,
+//   commencee_le DATETIME DEFAULT CURRENT_TIMESTAMP,
+//   terminee_le DATETIME  -- champ optionnel
+// );
+model Partie {
+  id               Int            @id @default(autoincrement())
+  joueurId         Int            @map("joueur_id")
+  motId            Int            @map("mot_id")
+  // Nullable : seulement rempli pour le mode « mot du jour »
+  defiQuotidienId  Int?           @map("defi_quotidien_id")
+  difficulte       Difficulte
+  resultat         ResultatPartie @default(EN_COURS)
+  nbEssais         Int            @default(0) @map("nb_essais")
+  commenceeLe      DateTime       @default(now()) @map("commencee_le")
+  // Champ optionnel — rempli quand la partie est terminée
+  termineeLe       DateTime?      @map("terminee_le")
+
+  // onDelete: Cascade → supprimer un joueur supprime ses parties
+  joueur Joueur @relation(fields: [joueurId], references: [id], onDelete: Cascade)
+
+  // onDelete: Restrict → impossible de supprimer un mot utilisé dans une partie
+  mot Mot @relation(fields: [motId], references: [id], onDelete: Restrict)
+
+  // onDelete: SetNull → supprimer un défi ne détruit pas l'historique des parties
+  // defiQuotidienId devient NULL (la partie reste dans l'historique)
+  defiQuotidien DefiQuotidien? @relation(fields: [defiQuotidienId], references: [id], onDelete: SetNull)
+
+  // Relation 1:N — une partie a plusieurs essais
+  essais Essai[]
+
+  @@map("parties")
+}
+
+// ─── Modèle 7 : Essai ─────────────────────────────────────────────────────
+// Équivalent SQL :
+// CREATE TABLE essais (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   partie_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+//   contenu TEXT NOT NULL,
+//   index_ligne INTEGER NOT NULL,
+//   feedback TEXT NOT NULL,  -- ex: "CPAPAB" = Correct/Present/Absent...
+//   cree_le DATETIME DEFAULT CURRENT_TIMESTAMP
+// );
+model Essai {
+  id         Int      @id @default(autoincrement())
+  partieId   Int      @map("partie_id")
+  contenu    String
+  indexLigne Int      @map("index_ligne")
+  // Feedback encodé : ex. "CORRECT,PRESENT,ABSENT,CORRECT,ABSENT"
+  feedback   String
+  creeLe     DateTime @default(now()) @map("cree_le")
+
+  // onDelete: Cascade → supprimer une partie supprime tous ses essais
+  partie Partie @relation(fields: [partieId], references: [id], onDelete: Cascade)
+
+  @@map("essais")
+}
+
+// ─── Modèle 8 : Succes ───────────────────────────────────────────────────
+// Équivalent SQL :
+// CREATE TABLE succes (
+//   id INTEGER PRIMARY KEY AUTOINCREMENT,
+//   code TEXT UNIQUE NOT NULL,
+//   libelle TEXT NOT NULL,
+//   description TEXT  -- champ optionnel
+// );
+model Succes {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  libelle     String
+  // Champ optionnel
+  description String?
+
+  // N:M explicite avec Joueur via table de jonction JoueurSucces
+  joueurs JoueurSucces[]
+
+  @@map("succes")
+}
+
+// ─── Modèle 9 : JoueurSucces (pivot N:M Joueur ↔ Succes) ─────────────────
+// Notion vue en cours : seconde table de jonction avec clé composite + date de déblocage
+// Équivalent SQL :
+// CREATE TABLE joueur_succes (
+//   joueur_id INTEGER NOT NULL REFERENCES joueurs(id) ON DELETE CASCADE,
+//   succes_id INTEGER NOT NULL REFERENCES succes(id) ON DELETE CASCADE,
+//   debloque_le DATETIME DEFAULT CURRENT_TIMESTAMP,
+//   PRIMARY KEY (joueur_id, succes_id)
+// );
+model JoueurSucces {
+  joueurId    Int      @map("joueur_id")
+  succesId    Int      @map("succes_id")
+  debloqueLe  DateTime @default(now()) @map("debloque_le")
+
+  // onDelete: Cascade → supprimer un joueur ou un succès supprime les associations
+  joueur Joueur @relation(fields: [joueurId], references: [id], onDelete: Cascade)
+  succes Succes @relation(fields: [succesId], references: [id], onDelete: Cascade)
+
+  // Clé primaire composite
+  @@id([joueurId, succesId])
+  @@map("joueur_succes")
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+renderer/app/dist/
+renderer/app/.angular/
+renderer/app/node_modules/
+*.db
+*.db-journal
+*.log
+.DS_Store
+Thumbs.db
