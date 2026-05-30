@@ -14,29 +14,57 @@ Jeu de mots français façon Wordle, application de bureau développée avec Ele
 
 ## Installation et lancement
 
-### Installation complète + démarrage
+### Première installation (à partir de zéro)
 
 ```bash
-# 1. Installer les dépendances racine
+# 1. Installer les dépendances racine (inclut tsx, electron, prisma…)
 npm install
 
-# 2. Générer le client Prisma
+# 2. Générer le client Prisma (types TypeScript pour @prisma/client)
 npm run db:generate
 
-# 3. Créer et migrer la base de données
+# 3. Créer la base SQLite, appliquer les migrations ET peupler automatiquement
+#    → db:migrate déclenche le seed automatiquement via la commande
+#      "prisma.seed" du package.json ("npx tsx prisma/seed.ts")
+#    → L'étape db:seed manuelle n'est donc PAS nécessaire après db:migrate
 npm run db:migrate
 
-# 4. Peupler la base avec des données de démonstration
-npm run db:seed
-
-# 5. Lancer l'application
+# 4. Lancer l'application (compile Electron + Angular, puis ouvre la fenêtre)
 npm run start
 ```
+
+> **Pourquoi `tsx` pour le seed ?**
+> Prisma 6 exécute la commande seed via `spawn` sans shell, ce qui rend les opérateurs
+> shell (`&&`) inopérants sur toutes les plateformes. `tsx` exécute directement le fichier
+> `.ts` sans étape de compilation séparée : une seule commande, zéro shell operator,
+> cross-platform (macOS / Windows / Linux).
 
 ### Démarrage rapide (après première installation)
 
 ```bash
 npm run start
+```
+
+### Réinitialisation complète (reset propre)
+
+```bash
+# Supprimer la base, les artefacts compilés et les modules
+rm -rf prisma/motus.db dist node_modules   # macOS/Linux
+# ou sous Windows PowerShell :
+# Remove-Item prisma/motus.db, dist, node_modules -Recurse -Force
+
+# Puis relancer le cycle complet
+npm install
+npm run db:generate
+npm run db:migrate   # recréé la DB + applique les migrations + seed automatique
+npm run start
+```
+
+### Re-seed seul (sans recréer la base)
+
+```bash
+# Utile pour réinitialiser les données sans toucher aux migrations
+npm run db:seed
 ```
 
 ---
@@ -50,9 +78,9 @@ npm run start
 | `npm run build:electron` | Compile uniquement TypeScript/Electron |
 | `npm run build:angular` | Build uniquement Angular |
 | `npm run start:dev` | Lance Electron sans rebuild (après un build) |
-| `npm run db:migrate` | Crée/migre la base SQLite |
+| `npm run db:migrate` | Crée/migre la base SQLite **+ seed automatique** |
 | `npm run db:generate` | Génère le client Prisma |
-| `npm run db:seed` | Peuple la base avec des données de démo |
+| `npm run db:seed` | Peuple la base manuellement (optionnel après migrate) |
 | `npm run db:studio` | Ouvre Prisma Studio (interface visuelle) |
 
 ---

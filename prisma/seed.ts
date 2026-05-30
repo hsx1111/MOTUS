@@ -5,10 +5,14 @@
 import { PrismaClient, Difficulte } from '@prisma/client';
 import * as path from 'path';
 
-// Configuration du chemin de la base (même logique que main.ts)
-// __dirname = dist/prisma/ après compilation → remonter de 2 niveaux vers la racine
+// Configuration du chemin de la base de données.
+// On utilise process.cwd() (= racine du projet quand lancé via npm run) plutôt que
+// __dirname, car __dirname varie selon le mode d'exécution :
+//   • tsx prisma/seed.ts  → __dirname = <racine>/prisma/
+//   • node dist/prisma/seed.js → __dirname = <racine>/dist/prisma/
+// process.cwd() est toujours la racine du projet dans les deux cas.
 process.env['DATABASE_URL'] =
-  'file:' + path.join(__dirname, '..', '..', 'prisma', 'motus.db');
+  'file:' + path.join(process.cwd(), 'prisma', 'motus.db');
 
 const prisma = new PrismaClient();
 
