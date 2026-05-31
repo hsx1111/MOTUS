@@ -26,6 +26,7 @@ import * as partieRepo from './repository/partie.repository.js';
 import * as essaiRepo from './repository/essai.repository.js';
 import * as statistiqueRepo from './repository/statistique.repository.js';
 import { closeDb } from './repository/prisma.client.js';
+import { dateDuJourLocale } from './date-locale.js';
 
 // ─── Création de la fenêtre principale ───────────────────────────────────
 function creerFenetre(): void {
@@ -161,8 +162,10 @@ ipcMain.handle('theme:mots-compte', async () => {
 // ─── Défi quotidien ────────────────────────────────────────────────────────
 ipcMain.handle('defi:du-jour', async () => {
   try {
-    const dateAujourdhui = new Date().toISOString().split('T')[0]!;
-    return await defiRepo.defiDuJour(dateAujourdhui);
+    // dateDuJourLocale() → heure LOCALE, pas UTC (évite le décalage près de minuit)
+    // assurerDefiDuJour() → get-or-create, ne peut plus renvoyer null
+    const dateAujourdhui = dateDuJourLocale();
+    return await defiRepo.assurerDefiDuJour(dateAujourdhui);
   } catch (erreur) {
     throw new Error(erreur instanceof Error ? erreur.message : 'Erreur serveur.');
   }

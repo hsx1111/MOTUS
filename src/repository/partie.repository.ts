@@ -9,7 +9,10 @@
 import prismaClient from './prisma.client.js';
 import type { Partie, Difficulte, ResultatPartie } from '../../shared/types.js';
 import { motAleatoire } from './mot.repository.js';
-import { defiDuJour } from './defi.repository.js';
+// assurerDefiDuJour = get-or-create : garantit qu'un défi existe toujours,
+// même si la date est hors de la plage seedée.
+import { assurerDefiDuJour } from './defi.repository.js';
+import { dateDuJourLocale } from '../date-locale.js';
 
 // ─── Démarrer une nouvelle partie ────────────────────────────────────────
 // Équivalent SQL : INSERT INTO parties (joueur_id, mot_id, difficulte) VALUES (?, ?, ?)
@@ -28,10 +31,10 @@ export async function demarrerPartie(
     let defiQuotidienId: number | undefined;
 
     if (modeDefi) {
-      // Mode défi : récupérer le mot du jour
-      const dateAujourdhui = new Date().toISOString().split('T')[0]!;
-      const defi = await defiDuJour(dateAujourdhui);
-      if (!defi) throw new Error("Aucun défi disponible pour aujourd'hui.");
+      // Mode défi : utilise assurerDefiDuJour (get-or-create) avec la date LOCALE
+      // → ne peut plus échouer pour cause de défi manquant en base
+      const dateAujourdhui = dateDuJourLocale();
+      const defi = await assurerDefiDuJour(dateAujourdhui);
       motId = defi.motId;
       defiQuotidienId = defi.id;
     } else {

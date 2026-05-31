@@ -4,6 +4,9 @@
 
 import { PrismaClient, Difficulte } from '@prisma/client';
 import * as path from 'path';
+// Helpers partagés : date locale + index déterministe
+// On importe depuis src/ (chemin relatif, résolu par tsx ou tsc)
+import { dateRelative, indexMotPourDate } from '../src/date-locale';
 
 // Configuration du chemin de la base de données.
 // On utilise process.cwd() (= racine du projet quand lancé via npm run) plutôt que
@@ -49,7 +52,6 @@ async function main(): Promise<void> {
     { valeur: 'LOUP', longueur: 4, definition: 'Grand canidé sauvage' },
     { valeur: 'OURS', longueur: 4, definition: 'Grand mammifère plantigrade' },
     { valeur: 'AIGLE', longueur: 5, definition: 'Grand rapace diurne' },
-    { valeur: 'TROUT', longueur: 5, definition: undefined },
     { valeur: 'ARBRE', longueur: 5, definition: 'Végétal ligneux' },
     { valeur: 'FLEUR', longueur: 5, definition: 'Organe reproducteur des plantes' },
     { valeur: 'PIZZA', longueur: 5, definition: 'Plat italien à base de pâte' },
@@ -59,12 +61,10 @@ async function main(): Promise<void> {
   // MOYEN (6-7 lettres)
   const motsMoyens = [
     { valeur: 'REQUIN', longueur: 6, definition: 'Grand poisson cartilagineux prédateur' },
-    { valeur: 'TIGRE', longueur: 5, definition: undefined }, // ajusté
+    { valeur: 'TIGRE', longueur: 5, definition: 'Grand félin prédateur' }, 
     { valeur: 'GIRAFE', longueur: 6, definition: 'Grand mammifère au long cou' },
     { valeur: 'BALLON', longueur: 6, definition: 'Sphère gonflable utilisée en sport' },
-    { valeur: 'GUITAR', longueur: 6, definition: undefined },
     { valeur: 'JARDIN', longueur: 6, definition: 'Espace cultivé autour d\'une maison' },
-    { valeur: 'CARROT', longueur: 6, definition: undefined },
     { valeur: 'MOUTON', longueur: 6, definition: 'Ruminant domestique à laine' },
     { valeur: 'SOLEIL', longueur: 6, definition: 'Étoile du système solaire' },
     { valeur: 'MUSIQUE', longueur: 7, definition: 'Art des sons organisés' },
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   // DIFFICILE (8+ lettres)
   const motsDifficiles = [
     { valeur: 'ELEPHANT', longueur: 8, definition: 'Plus grand mammifère terrestre' },
-    { valeur: 'PIRANHA', longueur: 7, definition: undefined }, // ajusté
+    { valeur: 'PIRANHA', longueur: 7, definition: 'Poisson qui fait peur dans les films la' }, // #blague
     { valeur: 'FOOTBALL', longueur: 8, definition: 'Sport collectif avec un ballon rond' },
     { valeur: 'MONTAGNE', longueur: 8, definition: 'Relief terrestre élevé' },
     { valeur: 'FRAMBOISE', longueur: 9, definition: 'Petit fruit rouge acidulé' },
@@ -117,9 +117,9 @@ async function main(): Promise<void> {
 
   const liaisonsAnimaux = ['CHAT', 'CHIEN', 'LOUP', 'OURS', 'AIGLE', 'REQUIN', 'GIRAFE', 'MOUTON', 'POISSON', 'ELEPHANT', 'CROCODILE', 'BALEINE'];
   const liaisonsNature = ['ARBRE', 'FLEUR', 'SOLEIL', 'RIVIERE', 'MONTAGNE', 'TOURNESOL', 'PRINTEMPS'];
-  const liaisonsAliments = ['PIZZA', 'CARROT', 'FRAMBOISE'];
+  const liaisonsAliments = ['PIZZA', 'FRAMBOISE'];
   const liaisonsSports = ['SPORT', 'BALLON', 'FOOTBALL'];
-  const liaisonsMusique = ['MUSIQUE', 'GUITAR', 'TROMPETTE'];
+  const liaisonsMusique = ['MUSIQUE', 'TROMPETTE'];
 
   for (const valeur of liaisonsAnimaux) {
     if (motsCrees[valeur]) {
@@ -158,33 +158,36 @@ async function main(): Promise<void> {
   }
 
   // ─── Défis quotidiens ─────────────────────────────────────────────────
-  console.log('📅 Création des défis quotidiens...');
-  const motDefi1 = motsCrees['SOLEIL'];
-  const motDefi2 = motsCrees['GIRAFE'];
-  const motDefi3 = motsCrees['MONTAGNE'];
-  const motDefi4 = motsCrees['ELEPHANT'];
-  const motDefi5 = motsCrees['FRAMBOISE'];
+  // Plage : aujourd'hui -7j → aujourd'hui +28j (35 jours au total)
+  // Chaque date reçoit un mot choisi de façon DÉTERMINISTE :
+  //   index = hash(date) % nb_mots  →  même date = même mot pour tous les joueurs
+  // Idempotent : upsert par date (clé unique), relancer ne crée pas de doublons.
+  console.log('📅 Création des défis quotidiens (-7j → +28j)...');
 
-  const today = new Date();
-  const defis = [
-    { jours: -4, mot: motDefi1 },
-    { jours: -3, mot: motDefi2 },
-    { jours: -2, mot: motDefi3 },
-    { jours: -1, mot: motDefi4 },
-    { jours: 0, mot: motDefi5 },
-  ];
+  // Récupérer tous les ids de mots triés par id (ordre stable et reproductible)
+  // Équivalent SQL : SELECT id FROM mots ORDER BY id
+  const tousMotsIds = await prisma.mot.findMany({
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  });
 
-  for (const { jours, mot } of defis) {
-    if (!mot) continue;
-    const date = new Date(today);
-    date.setDate(today.getDate() + jours);
-    const dateStr = date.toISOString().split('T')[0]!;
+  const JOURS_PASSES = 7;
+  const JOURS_FUTURS = 28;
+
+  for (let delta = -JOURS_PASSES; delta <= JOURS_FUTURS; delta++) {
+    const dateStr = dateRelative(delta);
+    const index = indexMotPourDate(dateStr, tousMotsIds.length);
+    const motId = tousMotsIds[index]!.id;
+
+    // upsert : crée ou met à jour si la date existe déjà
+    // Équivalent SQL : INSERT … ON CONFLICT (date) DO UPDATE SET mot_id = ?
     await prisma.defiQuotidien.upsert({
       where: { date: dateStr },
-      create: { date: dateStr, motId: mot.id },
-      update: { motId: mot.id },
+      create: { date: dateStr, motId },
+      update: { motId },
     });
   }
+  console.log(`   → ${JOURS_PASSES + JOURS_FUTURS + 1} défis créés/mis à jour.`);
 
   // ─── Succès ───────────────────────────────────────────────────────────
   console.log('🏆 Création des succès...');
@@ -287,7 +290,7 @@ async function main(): Promise<void> {
   console.log('✅ Seed terminé avec succès !');
   console.log(`   - ${Object.keys(motsCrees).length} mots créés`);
   console.log('   - 6 thèmes créés');
-  console.log('   - 5 défis quotidiens créés');
+  console.log(`   - ${JOURS_PASSES + JOURS_FUTURS + 1} défis quotidiens créés (-${JOURS_PASSES}j → +${JOURS_FUTURS}j)`);
   console.log('   - 4 succès créés');
   console.log('   - 2 joueurs de démonstration créés');
 }
