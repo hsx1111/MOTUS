@@ -115,7 +115,7 @@ motus-electron-angular-prisma/
 │   ├── schema.prisma        # 9 modèles + 2 enums
 │   └── seed.ts              # Données de démonstration
 └── docs/
-    └── schema-motus.drawio  # Schéma relationnel
+    └── schemaDB_MOTUS.png   # Schéma relationnel de la base de données
 ```
 
 ---
@@ -138,106 +138,158 @@ Composant Angular (page/enfant)
 
 ## Schéma relationnel
 
-```
-joueurs ─────────────────── 1:N ──── parties
-  │                                    │
-  │                               FK joueur_id (CASCADE)
-  │                               FK mot_id (RESTRICT)
-  │                               FK defi_quotidien_id (SET NULL)
-  │                                    │
-  └── N:M (joueur_succes) ─── succes   │
-                                        │
-mots ──── 1:N ──── defis_quotidiens ───┘
-  │
-  └── N:M (mot_theme) ──── themes
-  │
-  └── 1:N ──── essais (via parties)
-```
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- 👇  INSÉRER L'IMAGE DU SCHÉMA DE LA BASE DE DONNÉES ICI  👇            -->
+<!--                                                                        -->
+<!--  1. Placez votre image exportée depuis draw.io dans le dossier docs/   -->
+<!--     sous le nom : schemaDB_MOTUS.png                                   -->
+<!--  2. La ligne ci-dessous l'affichera automatiquement.                   -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
 
-Cardinalités Merise :
-- Joueur (1,N) ──── (0,1) Partie : un joueur peut avoir plusieurs parties
-- Mot (1,N) ──── (0,1) DefiQuotidien : un mot peut être défi plusieurs fois
-- Partie (1,N) ──── (0,1) Essai : une partie a plusieurs essais
-- Mot (N,M) ──── Theme : via table MotTheme
-- Joueur (N,M) ──── Succes : via table JoueurSucces
+![Schéma relationnel de la base de données MOTUS](docs/schemaDB_MOTUS.png)
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- 👆  FIN DE L'EMPLACEMENT DE L'IMAGE  👆                                -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+
+Le schéma comporte **9 tables** et **2 énumérations** (`Difficulte`, `ResultatPartie`, stockées en `TEXT` par SQLite). Les relations entre les tables :
+
+| Relation | Type | Cardinalités (Merise) | Clé étrangère |
+|---|---|---|---|
+| Joueur → Partie | 1:N | Joueur `0,N` — Partie `1,1` | `parties.joueur_id` |
+| Mot → Partie | 1:N | Mot `0,N` — Partie `1,1` | `parties.mot_id` |
+| DefiQuotidien → Partie | 1:N | DefiQuotidien `0,N` — Partie `0,1` | `parties.defi_quotidien_id` |
+| Mot → DefiQuotidien | 1:N | Mot `0,N` — DefiQuotidien `1,1` | `defis_quotidiens.mot_id` |
+| Partie → Essai | 1:N | Partie `0,N` — Essai `1,1` | `essais.partie_id` |
+| Mot ↔ Theme | N:M | via `mot_theme` (PK composite) | `mot_theme.(mot_id, theme_id)` |
+| Joueur ↔ Succes | N:M | via `joueur_succes` (PK composite) | `joueur_succes.(joueur_id, succes_id)` |
+
+> **Lecture Merise** : la cardinalité se lit depuis l'entité à laquelle elle est collée. Un joueur participe à `0,N` parties ; une partie est rattachée à `1,1` joueur. Le `0,1` de `DefiQuotidien → Partie` traduit la clé étrangère **optionnelle** (`defi_quotidien_id` nullable, renseignée uniquement en mode « mot du jour »).
 
 ---
 
 ## Choix de modélisation et équivalents SQL
 
-### Relation 1:N (Joueur → Partie)
-```sql
--- Prisma : joueur Joueur @relation(..., onDelete: Cascade)
-ALTER TABLE parties ADD CONSTRAINT fk_joueur
-  FOREIGN KEY (joueur_id) REFERENCES joueurs(id) ON DELETE CASCADE;
-```
+Cette section explique, pour chaque notion utilisée dans le projet, **à quoi elle sert**, **comment on l'écrit avec Prisma**, et **ce que ça donne en SQL**. C'est exactement ce qui sera demandé à l'oral.
 
-### Table de jonction N:M explicite (MotTheme)
+### 1. Relation 1:N (un-à-plusieurs)
+
+Un joueur peut avoir **plusieurs** parties, mais chaque partie appartient à **un seul** joueur. En base, on traduit ça par une **clé étrangère** placée dans la table « côté plusieurs » (ici `parties`), qui pointe vers la table « côté un » (`joueurs`).
+
+```prisma
+// schema.prisma — la FK est dans Partie, qui pointe vers Joueur
+model Partie {
+  joueurId Int
+  joueur   Joueur @relation(fields: [joueurId], references: [id])
+}
+```
 ```sql
--- Prisma : @@id([motId, themeId])
-CREATE TABLE mot_theme (
-  mot_id INTEGER NOT NULL,
-  theme_id INTEGER NOT NULL,
-  PRIMARY KEY (mot_id, theme_id),
-  FOREIGN KEY (mot_id) REFERENCES mots(id) ON DELETE CASCADE,
-  FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE
+-- En SQL, c'est une colonne joueur_id dans parties qui référence joueurs(id)
+CREATE TABLE parties (
+  id        INTEGER PRIMARY KEY,
+  joueur_id INTEGER NOT NULL,
+  FOREIGN KEY (joueur_id) REFERENCES joueurs(id)
 );
 ```
 
-### include → JOIN
+### 2. Relation N:M (plusieurs-à-plusieurs) via table de jonction
+
+Un mot peut appartenir à **plusieurs** thèmes, et un thème regroupe **plusieurs** mots. Le SQL ne sait pas stocker ça directement : on crée une **table intermédiaire** (`mot_theme`) dont chaque ligne associe un mot à un thème. Sa **clé primaire est composée des deux clés étrangères**, ce qui empêche d'enregistrer deux fois la même paire.
+
+```prisma
+// schema.prisma — table de jonction explicite
+model MotTheme {
+  motId   Int
+  themeId Int
+  mot     Mot   @relation(fields: [motId], references: [id])
+  theme   Theme @relation(fields: [themeId], references: [id])
+  @@id([motId, themeId])   // clé primaire composite
+}
+```
 ```sql
--- Prisma : partie.findMany({ include: { essais: true, mot: true } })
-SELECT p.*, m.*, e.*
-FROM parties p
-JOIN mots m ON p.mot_id = m.id
-LEFT JOIN essais e ON p.id = e.partie_id;
+CREATE TABLE mot_theme (
+  mot_id   INTEGER NOT NULL,
+  theme_id INTEGER NOT NULL,
+  PRIMARY KEY (mot_id, theme_id),   -- la paire est unique
+  FOREIGN KEY (mot_id)   REFERENCES mots(id),
+  FOREIGN KEY (theme_id) REFERENCES themes(id)
+);
 ```
 
-### count → COUNT(*)
+### 3. `include` → charger les données liées (JOIN)
+
+Quand je récupère une partie, je veux aussi son mot et ses essais **en une seule requête**, sans faire plusieurs allers-retours. Le `include` de Prisma joint les tables liées — c'est l'équivalent d'un **JOIN** SQL.
+
+```typescript
+// Prisma : récupère la partie AVEC son mot et ses essais
+prisma.partie.findUnique({ where: { id }, include: { mot: true, essais: true } });
+```
 ```sql
--- Prisma : partie.count({ where: { joueurId, resultat: 'GAGNE' } })
+SELECT * FROM parties p
+JOIN mots m   ON p.mot_id = m.id
+LEFT JOIN essais e ON p.id = e.partie_id
+WHERE p.id = ?;
+```
+
+### 4. `count` → compter des lignes
+
+Pour afficher le nombre de parties gagnées, je compte les lignes qui remplissent une condition.
+
+```typescript
+prisma.partie.count({ where: { joueurId, resultat: 'GAGNE' } });
+```
+```sql
 SELECT COUNT(*) FROM parties WHERE joueur_id = ? AND resultat = 'GAGNE';
 ```
 
-### groupBy → GROUP BY
+### 5. `groupBy` → regrouper et compter par catégorie
+
+Pour la répartition des essais (« combien de parties gagnées en 2 coups, en 3 coups… »), je regroupe les parties par nombre d'essais et je compte chaque groupe.
+
+```typescript
+prisma.partie.groupBy({ by: ['nbEssais'], _count: { id: true } });
+```
 ```sql
--- Prisma : partie.groupBy({ by: ['nbEssais'], _count: { id: true } })
 SELECT nb_essais, COUNT(id) FROM parties GROUP BY nb_essais;
 ```
 
-### _avg → AVG()
+### 6. `aggregate` / `_avg` → calculer une moyenne
+
+Pour la moyenne d'essais sur les parties gagnées.
+
+```typescript
+prisma.partie.aggregate({ where: { resultat: 'GAGNE' }, _avg: { nbEssais: true } });
+```
 ```sql
--- Prisma : partie.aggregate({ _avg: { nbEssais: true } })
 SELECT AVG(nb_essais) FROM parties WHERE resultat = 'GAGNE';
 ```
 
-### $transaction → BEGIN/COMMIT
+### 7. `$transaction` → plusieurs écritures « tout ou rien »
+
+Soumettre un essai fait **plusieurs** écritures d'affilée : créer l'essai, mettre à jour la partie, parfois débloquer un succès. La transaction garantit que **tout réussit ou rien n'est enregistré** — impossible de se retrouver avec un essai créé mais une partie non mise à jour.
+
+```typescript
+prisma.$transaction(async (tx) => {
+  await tx.essai.create({ ... });
+  await tx.partie.update({ ... });
+});
+```
 ```sql
--- Prisma : prisma.$transaction(async (tx) => { ... })
 BEGIN TRANSACTION;
   INSERT INTO essais (...) VALUES (...);
   UPDATE parties SET resultat = ? WHERE id = ?;
-COMMIT; -- ou ROLLBACK si erreur
+COMMIT;   -- ou ROLLBACK si une étape échoue
 ```
 
-### onDelete : Cascade vs Restrict vs SetNull
-| Comportement | Déclenché quand | Effet |
+### 8. `onDelete` → que se passe-t-il quand on supprime une ligne référencée ?
+
+Quand on supprime une ligne à laquelle d'autres tables font référence, on doit dire à la base **quoi faire des lignes dépendantes**. Le projet utilise les trois comportements :
+
+| Comportement | Exemple dans le projet | Effet |
 |---|---|---|
-| `CASCADE` | Suppression d'un Joueur | Supprime toutes ses Parties et Essais |
-| `RESTRICT` | Suppression d'un Mot utilisé dans une Partie | Erreur — interdit |
-| `SET NULL` | Suppression d'un DefiQuotidien | Met defiQuotidienId à NULL dans les Parties |
-
----
-
-## Note sur DATABASE_URL programmatique
-
-Après compilation (`tsc`), `main.js` se trouve dans `dist/src/`. Pour trouver `prisma/motus.db` à la racine du projet, on remonte de 2 niveaux :
-
-```typescript
-process.env['DATABASE_URL'] = 'file:' + path.join(__dirname, '..', '..', 'prisma', 'motus.db');
-```
-
-Le fichier `.env` est utilisé uniquement par la CLI Prisma (migrate, studio, seed).
+| `Cascade` | Supprimer un Joueur | Supprime aussi toutes ses Parties (et leurs Essais) |
+| `Restrict` | Supprimer un Mot encore utilisé dans une Partie | Refusé — la base lève une erreur |
+| `SetNull` | Supprimer un DefiQuotidien | Les Parties concernées gardent leur historique, leur `defi_quotidien_id` passe à `NULL` |
 
 ---
 
